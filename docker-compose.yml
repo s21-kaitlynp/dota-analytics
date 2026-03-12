@@ -1,0 +1,63 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: dota-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_CONSOLE_PORT}:9002"
+      - "${MINIO_API_PORT}:9000"
+    command: server /data --console-address ":9002"
+    volumes:
+      - ./data/minio:/data
+    networks:
+      - dota-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  postgres:
+    image: postgres:14
+    container_name: dota-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - dota-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kaitlynp -d dota_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: dota-clickhouse
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT}:9000"
+    volumes:
+      - ./data/clickhouse:/var/lib/clickhouse
+    networks:
+      - dota-network
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user=kaitlynp", "--password=kaitlynp123", "--query=SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      
+networks:
+  dota-network:
+    driver: bridge
